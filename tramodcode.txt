@@ -1,0 +1,372 @@
+#EDREMIT MODELLING
+#CO2-FLUID-ROCK INTERACTION FOR CO2 STORAGE
+
+#Sanem Elidemir, PhD Thesis Study
+
+#Sample No: EDR-912
+#Water Sample: EDJ-7
+
+SOLUTION_SPECIES #correction for CO2 solubility
+CO3-2 + 2 H+ = CO2 + H2O
+   -log_k   16.681
+   -delta_h -5.738   kcal
+   -analytic   464.1965   0.09344813   -26986.16   -165.75951   2248628.9
+   -dw    1.92e-9
+   -Vm   7.29  0.92  2.07  -1.23  -1.60
+2CO2 = (CO2)2 # activity correction for CO2 solubility at high P, T
+   -log_k -1.8
+   -analytical_expression  8.68  -0.0103  -2190
+   -Vm   14.58  1.84  4.14  -2.46  -3.20
+
+PHASES
+CO2(g)
+   CO2 = CO2
+   -log_k   -1.468
+   -delta_h -4.776 kcal
+   -analytic   10.5624  -2.3547e-2  -3972.8  0  5.8746e5  1.9194e-5
+   -T_c  304.2 # critical T, K
+   -P_c   72.86 # critical P, atm
+   -Omega 0.225 # acentric factor
+
+Ankerite #Koenen et al., 2014
+    CaMg0.3Fe0.7(CO3)2 + 2H+ = Ca+2 + 0.7Fe+2 + 2HCO3- + 0.3Mg+2
+    log_k     1.54
+    delta_h   0 kJ
+    -analytical_expression -1864.9 -0.29583 104680 675.54 -6051400 0
+
+Oligoclase #Zhang2019 library master
+Na0.8Ca0.2Al1.2Si2.8O8  = 0.8Na+ + 0.2Ca+2 + 1.2AlO2- + 2.8SiO2
+	-log_k	-20.0668
+	-analytic	-95.369	0.0	-3491.33	34.866	309743	-30.890E-6
+Andesine
+	Na0.6Ca0.4Al1.4Si2.6O8 = 0.6Na+ + 0.4Ca+2 + 1.4AlO2- + 2.6SiO2
+	-log_k	-20.1283
+	-analytic	-93.896	0.0	-3219.46	33.941	313944	-33.193E-6
+Labradorite
+	Na0.4Ca0.6Al1.6Si2.4O8 = 0.4Na+ + 0.6Ca+2 + 1.6AlO2- + 2.4SiO2
+	-log_k	-20.0702
+	-analytic	-92.306	0.0	-2947.59	33.017	318144	-35.495E-6
+Bytownite
+	Na0.2Ca0.8Al1.8Si2.2O8 = 0.2Na+ + 0.8Ca+2 + 1.8AlO2- + 2.2SiO2
+	-log_k	-20.1692
+	-analytic	-90.585	0.0	-2761.60	32.093	322345	-37.798E-6
+END
+
+SOLUTION 0 EDJ-7
+    temp      150
+    pH        7.61
+    pe        4
+    redox     pe
+    units     mg/l
+    density   1
+    Si        22.44
+    C(4)      37
+    Cl(-1)    63
+    S(6)      500
+    Na        246
+    K         5.7
+    Ca        39
+    Mg        0.1
+    Al        0.088
+    Fe        0.079
+    N(5)      0.22
+    -water    1 # kg
+  
+EQUILIBRIUM_PHASES 1000 EDR-912
+    CO2(g)    1.956 33   #log of 90.35 atm
+
+SAVE SOLUTION 0
+END
+
+SOLUTION 1-100 EDJ-7
+    temp      150
+    pH        7.61
+    pe        4
+    redox     pe
+    units     mg/l
+    density   1
+    Si        22.44
+    C(4)      37
+    Cl(-1)    63
+    S(6)      500
+    Na        246
+    K         5.7
+    Ca        39
+    Mg        0.1
+    Al        0.088
+    Fe        0.079
+    N(5)      0.22
+    -water    1 # kg
+  
+EQUILIBRIUM_PHASES 1-100 EDR-912
+    Calcite   0 19.84
+
+
+RATES
+    Quartz
+-start
+ 10 REM PARM(1) = MSA (molar surface area) [m^2/mol]
+ 20 SI_Qtz = SI("Quartz")
+ 30 if (M <= 0 and SI_Qtz < 0) then goto 200             
+ 40 SA = PARM(1) * M              
+ 50 if (M = 0 and SI_Qtz > 0) then SA = 1e-05  #nucleation
+ 60 temp_diff = 1/TK-1/298.15
+ 70 k_acid = 0
+ 80 k_neut = 10^(-13.4)*EXP(-90.9E+03/8.3145*temp_diff)
+ 90 k_base = 0
+100 k = k_neut+k_acid+k_base
+110 rate = k*SA*(1-(10^SI_Qtz))
+120 moles = rate*TIME
+200 SAVE moles
+-end
+    Dolomite
+-start
+ 10 REM PARM(1) = MSA (molar surface area) [m^2/mol]
+ 20 SI_Dol = SI("Dolomite")
+ 30 if (M <= 0 and SI_Dol < 0) then goto 200             
+ 40 SA = PARM(1) * M              
+ 50 if (M = 0 and SI_Dol > 0) then SA = 1e-05  #nucleation 
+ 60 temp_diff = 1/TK-1/298.15
+ 70 k_acid = 10^(-3.76)*EXP(-56.7E+03/8.3145*temp_diff)*ACT("H+")^(0.5)
+ 80 k_neut = 10^(-8.60)*EXP(-95.3E+03/8.3145*temp_diff)
+ 90 k_carb = 10^(-5.37)*EXP(-45.7E+03/8.3145*temp_diff)*PR_P("CO2(g)")^(0.5)
+100 k = k_neut+k_acid+k_carb
+110 rate = k*SA*(1-(10^SI_Dol))
+120 moles = rate*TIME
+200 SAVE moles
+-end
+    Ankerite
+-start
+ 10 REM PARM(1) = MSA (molar surface area) [m^2/mol]
+ 20 SI_Ank = SI("Ankerite")
+ 30 if (M <= 0 and SI_Ank < 0) then goto 200
+ 40 SA = PARM(1)*M
+ 50 if (M = 0 and SI_Ank > 0) then SA = 1e-05  #nucleation 
+ 60 temp_diff = 1/TK-1/298.15
+ 70 k_acid = 10^(-3.76)*EXP(-56.7E+03/8.3145*temp_diff)*ACT("H+")^(0.5)
+ 80 k_neut = 10^(-8.60)*EXP(-95.3E+03/8.3145*temp_diff)
+ 90 k_carb = 10^(-5.37)*EXP(-45.7E+03/8.3145*temp_diff)*PR_P("CO2(g)")^(0.5)
+100 k = k_acid+k_neut+k_carb
+110 rate = k*SA*(1-(10^SI_Ank))
+120 moles = rate*TIME
+200 SAVE moles
+-end
+    K-Feldspar2
+-start
+ 10 REM PARM(1) = MSA (Molar surface area) [m^2/mol]
+ 20 SI_Kfeld = SI("K-Feldspar")
+ 30 if (M <= 0 and SI_Kfeld < 0) then goto 200             
+ 40 SA = PARM(1) * M              
+ 50 if (M = 0 and SI_Kfeld > 0) then SA = 1e-05  #nucleation
+ 60 temp_diff = 1/TK-1/298.15
+ 70 k_acid = 10^(-10.06)*EXP(-51.70e+03/8.314*temp_diff)*ACT("H+")^(0.500)                  
+ 80 k_neut = 10^(-12.41)*EXP(-38.00e+03/8.314*temp_diff)
+ 90 k_base = 10^(-21.20)*EXP(-94.10e+03/8.314*temp_diff)*ACT("OH-")^(-0.823)
+100 k = k_acid + k_neut + k_base
+110 rate = k * SA * (1-(10^SI_Kfeld))
+120 moles = rate * TIME
+200 SAVE moles
+-end
+    Albite2
+-start
+ 10 REM PARM(1) = MSA (Molar surface area) [m^2/mol]
+ 20 SI_Alb = SI("Albite")
+ 30 if (M <= 0 and SI_Alb < 0) then goto 200             
+ 40 SA = PARM(1) * M              
+ 50 if (M = 0 and SI_Alb > 0) then SA = 1e-05  #nucleation
+ 60 temp_diff = 1/TK-1/298.15
+ 70 k_acid = 10^(-10.16)*EXP(-65.00e+03/8.314*temp_diff)*(ACT("H+")^(0.457))                 
+ 80 k_neut = 10^(-12.56)*EXP(-69.80e+03/8.314*temp_diff)
+ 90 k_base = 10^(-15.60)*EXP(-71.00e+03/8.314*temp_diff)*(ACT("OH-")^(-0.572))
+100 k = k_acid + k_neut + k_base
+110 rate = k * SA *(1-(10^SI_Alb))
+120 moles = rate * TIME
+200 SAVE moles
+-end
+    Labradorite
+-start
+ 10 REM PARM(1) = MSA (Molar surface area) [m^2/mol]
+ 20 SI_Lab = SI("Labradorite")
+ 30 if (M <= 0 and SI_Lab < 0) then goto 200             
+ 40 SA = PARM(1) * M              
+ 50 if (M = 0 and SI_Lab > 0) then SA = 1e-05  #nucleation
+ 60 temp_diff = 1/TK-1/298.15
+ 70 k_acid = 10^(-7.87)*EXP(-42.1e+03/8.314*temp_diff)*(ACT("H+")^(0.626))                 
+ 80 k_neut = 10^(-10.91)*EXP(-45.2e+03/8.314*temp_diff)
+ 90 k_base = 0
+100 k = k_acid + k_neut + k_base
+110 rate = k * SA *(1-(10^SI_Lab))
+120 moles = rate * TIME
+200 SAVE moles
+-end
+    Bytownite
+-start
+ 10 REM PARM(1) = MSA (Molar surface area) [m^2/mol]
+ 20 SI_Byt = SI("Bytownite")
+ 30 if (M <= 0 and SI_Byt < 0) then goto 200             
+ 40 SA = PARM(1) * M              
+ 50 if (M = 0 and SI_Byt > 0) then SA = 1e-05  #nucleation
+ 60 temp_diff = 1/TK-1/298.15
+ 70 k_acid = 10^(-5.85)*EXP(-29.3e+03/8.314*temp_diff)*(ACT("H+")^(1.018))                 
+ 80 k_neut = 10^(-9.82)*EXP(-31.5e+03/8.314*temp_diff)
+ 90 k_base = 0
+100 k = k_acid + k_neut + k_base
+110 rate = k * SA *(1-(10^SI_Byt))
+120 moles = rate * TIME
+200 SAVE moles
+-end
+   Phlogopite 
+-start
+ 10 REM PARM(1) = MSA (molar surface area) [m^2/mol]
+ 20 SI_Phlo = SI("Phlogopite")
+ 30 if (M <= 0 and SI_Phlo < 0) then goto 200             
+ 40 SA = PARM(1) * M              
+ 50 if (M = 0 and SI_Phlo > 0) then SA = 1e-05  #nucleation  
+ 60 temp_diff = 1/TK-1/298.15
+ 70 k_acid = 0
+ 80 k_neut = 10^(-12.40)*EXP(-29E+03/8.3145*temp_diff)
+ 90 k_base = 0
+100 k = k_neut+k_acid+k_base
+110 rate = k*SA*(1-(10^SI_Phlo))
+120 moles = rate*TIME
+200 SAVE moles 
+-end
+    Chamosite-7A
+-start
+ 10 REM PARM(1) = MSA (molar surface area) [m^2/mol]
+ 20 SI_Cham = SI("Chamosite-7A")
+ 30 if (M <= 0 and SI_Cham < 0) then goto 200             
+ 40 SA = PARM(1) * M              
+ 50 if (M = 0 and SI_Cham > 0) then SA = 1e-05  #nucleation   
+ 60 temp_diff = 1/TK-1/298.15
+ 70 k_acid = 10^(-11.11)*EXP(-88E+03/8.3145*temp_diff)*ACT("H+")^(0.5)
+ 80 k_neut = 10^(-12.52)*EXP(-88E+03/8.3145*temp_diff)
+ 90 k_base = 0
+100 k = k_neut+k_acid+k_base
+110 rate = k*SA*(1-(10^SI_Cham))
+120 moles = rate*TIME
+200 SAVE moles
+-end
+    Kaolinite
+-start
+ 10 REM PARM(1) = MSA (molar surface area) [m^2/mol]
+ 20 SI_Kaol = SI("Kaolinite")
+ 30 if (M <= 0 and SI_Kaol < 0) then goto 200             
+ 40 SA = PARM(1) * M              
+ 50 if (M = 0 and SI_Kaol > 0) then SA = 1E-05
+ 60 temp_diff = 1/TK-1/298.15
+ 70 k_acid = 10^(-11.31)*EXP(-65.9E+03/8.3145*temp_diff)*ACT("H+")^(0.777)
+ 80 k_neut = 10^(-13.18)*EXP(-22.2E+03/8.3145*temp_diff)
+ 90 k_base = 10^(-17.05)*EXP(-17.9E+03/8.3145*temp_diff)*ACT("OH-")^(-0.472)
+100 k = k_acid+k_neut+k_base
+110 rate = k*SA*(1-(10^SI_Kaol))
+120 moles = rate*TIME
+130 SAVE moles
+-end
+    Illite  #montmor data
+-start
+ 10 REM PARM(1) = MSA (molar surface area) [m^2/mol]
+ 20 SI_Illi = SI("Illite")
+ 30 if (M <= 0 and SI_Illi < 0) then goto 200             
+ 40 SA = PARM(1) * M              
+ 50 if (M = 0 and SI_Illi > 0) then SA = 1e-05  #nucleation  
+ 60 temp_diff = 1/TK-1/298.15
+ 70 k_acid = 10^(-12.71)*EXP(-48E+03/8.3145*temp_diff)*ACT("H+")^(0.22)
+ 80 k_neut = 10^(-14.41)*EXP(-48E+03/8.3145*temp_diff)
+ 90 k_base = 10^(-14.41)*EXP(-48E+03/8.3145*temp_diff)*ACT("OH-")^(-0.13)
+100 k = k_neut+k_acid+k_base
+110 rate = k*SA*(1-(10^SI_Illi))
+120 moles = rate*TIME
+200 SAVE moles 
+-end
+    Pargasite    #hornblende data
+-start
+ 10 REM PARM(1) = MSA (molar surface area) [m^2/mol]
+ 20 SI_Par = SI("Pargasite")
+ 30 if (M <= 0 and SI_Par < 0) then goto 200             
+ 40 SA = PARM(1) * M              
+ 50 if (M = 0 and SI_Par > 0) then SA = 1e-05  #nucleation  
+ 60 temp_diff = 1/TK-1/298.15
+ 70 k_acid = 10^(-7.00)*EXP(-75.5E+03/8.3145*temp_diff)*ACT("H+")^(0.600)
+ 80 k_neut = 10^(-10.30)*EXP(-94.4E+03/8.3145*temp_diff)
+ 90 k_base = 0
+100 k = k_neut+k_acid+k_base
+110 rate = k*SA*(1-(10^SI_Par))
+120 moles = rate*TIME
+200 SAVE moles 
+-end
+    Magnesite
+-start
+ 10 REM PARM(1) = MSA (molar surface area) [m^2/mol]
+ 20 SI_Mag = SI("Magnesite")
+ 30 if (M <= 0 and SI_Mag < 0) then goto 200
+ 40 SA = PARM(1)*M
+ 50 if (M = 0 and SI_Mag > 0) then SA = 1E-05
+ 60 temp_diff = 1/TK-1/298.15
+ 70 k_acid = 10^(-6.38)*EXP(-14.4E+03/8.3145*temp_diff)*ACT("H+")^(1)
+ 80 k_neut = 10^(-9.34)*EXP(-23.5E+03/8.3145*temp_diff)
+ 90 k_carb = 10^(-5.22)*EXP(-62.8E+03/8.3145*temp_diff)*PR_P("CO2(g)")^(1)
+100 k_rateconst = k_acid+k_neut+k_carb
+110 rate = k_rateconst*SA*(1-10^SI_Mag)
+120 moles = rate*TIME
+200 SAVE moles
+-end
+
+KINETICS 1-100
+Dolomite
+    -formula  CaMg(CO3)2  1
+    -m        0
+    -m0       0
+    -parms    33.192
+    -tol      1e-009
+Quartz
+    -formula  SiO2  1
+    -m        441.79
+    -m0       441.79
+    -parms    1.2016
+    -tol      1e-009
+Illite
+    -formula  K0.6Mg0.25Al1.8Al0.5Si3.5O10(OH)2  1
+    -m        9.66
+    -m0       9.66
+    -parms    179.665
+    -tol      1e-009
+K-Feldspar2
+    -formula  KAlSi3O8  1
+    -m        55.38
+    -m0       55.38
+    -parms    30.6163
+    -tol      1e-009
+Magnesite
+    -formula  MgCO3  1
+    -m        0
+    -m0       0
+    -parms    10.9603
+    -tol      1e-009
+Phlogopite
+    -formula  KAlMg3Si3O10(OH)2  1
+    -m        10.89
+    -m0       10.89
+    -parms    513.23
+    -tol      1e-009
+-cvode true 
+
+
+INCREMENTAL_REACTIONS True
+
+END
+
+TRANSPORT
+    -cells                 100
+    -shifts                300 #100 years
+    -time_step             10000000 # seconds , 10e-7 m/s velocity
+    -lengths               100*1 #100m
+    -dispersivities        100*0.05
+    -correct_disp          true
+    -diffusion_coefficient 1e-09
+    -boundary_conditions   flux flux #at column ends
+    -flow_direction        forward
+    -punch_frequency       1 
+    -punch_cells           1-100
+    -print_frequency       1
+END
